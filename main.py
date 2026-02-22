@@ -38,6 +38,15 @@ def load_user_memory(user_name):
 def save_user_memory(path, knowledge):
     save_json(path, knowledge)
 
+# ---------- IDENTITY ----------
+# Load global identity (same for all users)
+identity_path = "identity.json"
+if not os.path.exists(identity_path):
+    # create default identity if missing
+    save_json(identity_path, {"name": "Quinela"})
+identity = load_json(identity_path)
+
+# ---------- CONFIG ----------
 THRESHOLD = 0.6
 
 # ---------- RESPONSE FUNCTION ----------

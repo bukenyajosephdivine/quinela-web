@@ -41,15 +41,15 @@ if st.button("Send") and user_input.strip():
         st.session_state.teach_mode = False
 
 # ---------- MANUAL CORRECTION ----------
-# If you know the answer was wrong, you can correct her here
+# Only correct manually if you know the answer is wrong
 wrong_answer = st.text_input("If my answer was wrong, type the correct answer here:", key="correction_input")
 if wrong_answer.strip() and st.session_state.qa_item:
     st.session_state.qa_item["answer"] = wrong_answer
-    st.session_state.qa_item["last_used"] = wrong_answer
+    st.session_state.qa_item["last_used"] = datetime.now().isoformat()
     st.session_state.qa_item["confidence"] = max(1, st.session_state.qa_item.get("confidence", 1) - 1)
     save_user_memory(path, knowledge)
     st.success("✅ I have corrected myself!")
-    st.session_state.qa_item = None  # Reset so you don't correct the same item again
+    st.session_state.qa_item = None  # Reset so you don't correct same answer twice
 
 # ---------- TEACHING MODE ----------
 if st.session_state.teach_mode:
