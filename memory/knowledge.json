@@ -1,0 +1,32 @@
+{
+  "qa_pairs": [
+    {
+      "question": "hi",
+      "answer": "hello",
+      "confidence": 2,
+      "learned_on": "2026-02-22T20:10:11.482905",
+      "last_used": "2026-02-22T20:10:20.665785"
+    },
+    {
+      "question": "hello",
+      "answer": "hi",
+      "confidence": 2,
+      "learned_on": "2026-02-22T20:10:54.148018",
+      "last_used": "2026-02-22T20:11:02.197445"
+    },
+    {
+      "question": "who made you",
+      "answer": "Divine made me",
+      "confidence": 2,
+      "learned_on": "2026-02-22T20:12:20.491895",
+      "last_used": "2026-02-22T20:12:23.174045"
+    },
+    {
+      "question": "Quinela",
+      "answer": "Yes Divine how can i be of good help to you",
+      "confidence": 2,
+      "learned_on": "2026-02-22T20:13:25.171592",
+      "last_used": "2026-02-22T20:13:26.323520"
+    }
+  ]
+}
