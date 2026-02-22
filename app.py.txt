@@ -1,19 +1,10 @@
 import streamlit as st
-from main import get_response, learn, load_user_memory, save_user_memory
-from datetime import datetime
+from main import get_response, learn, identity, load_user_memory, save_user_memory
 
 # ---------- PAGE SETUP ----------
 st.set_page_config(page_title="Quinela", page_icon="🤖")
-st.title("Quinela 🤖")
-st.write("Your personal AI assistant. Each user's learning is private.")
-
-# ---------- USER LOGIN ----------
-user_name = st.text_input("Enter your name:", "")
-if not user_name:
-    st.warning("Please enter your name to continue")
-    st.stop()
-
-knowledge, path = load_user_memory(user_name)
+st.title(f"{identity['name']} 🤖")
+st.write("Your learning AI assistant")
 
 # ---------- SESSION STATE ----------
 if "teach_mode" not in st.session_state:
@@ -21,6 +12,15 @@ if "teach_mode" not in st.session_state:
     st.session_state.last_question = ""
     st.session_state.last_reply = ""
     st.session_state.qa_item = None
+
+# ---------- USER LOGIN ----------
+user_name = st.text_input("Enter your name:", "")
+if not user_name:
+    st.warning("Please enter your name to continue")
+    st.stop()
+
+# Load per-user memory
+knowledge, path = load_user_memory(user_name)
 
 # ---------- USER INPUT ----------
 user_input = st.text_input("You:", placeholder="Type something...")
@@ -41,12 +41,12 @@ if st.button("Send") and user_input.strip():
 
 # ---------- SELF-CORRECTION ----------
 if st.session_state.qa_item:
-    correct_flag = st.radio("Is this answer correct?", ("Yes", "No"), key=str(datetime.now()))
+    correct_flag = st.radio("Is this answer correct?", ("Yes", "No"), key=str(user_input))
     if correct_flag == "No":
         new_answer = st.text_input("Please provide the correct answer:", key="correction_input")
         if new_answer.strip():
             st.session_state.qa_item["answer"] = new_answer
-            st.session_state.qa_item["last_used"] = datetime.now().isoformat()
+            st.session_state.qa_item["last_used"] = new_answer
             st.session_state.qa_item["confidence"] = max(1, st.session_state.qa_item.get("confidence", 1) - 1)
             save_user_memory(path, knowledge)
             st.success("✅ I have corrected myself!")
