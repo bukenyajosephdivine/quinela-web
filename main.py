@@ -1,6 +1,5 @@
 import json
 import re
-import os
 from datetime import datetime
 
 # ---------- JSON UTILITIES ----------
@@ -25,32 +24,14 @@ def similarity(q1, q2):
         return 0
     return len(s1 & s2) / len(s1 | s2)
 
-# ---------- USER-SPECIFIC MEMORY ----------
-def load_user_memory(user_name):
-    os.makedirs("memory", exist_ok=True)
-    path = f"memory/{user_name}_knowledge.json"
-    if not os.path.exists(path):
-        # create empty knowledge file for new user
-        save_json(path, {"qa_pairs": []})
-    knowledge = load_json(path)
-    return knowledge, path
+# ---------- LOAD MEMORY ----------
+identity = load_json("identity.json")
+knowledge = load_json("memory/knowledge.json")
 
-def save_user_memory(path, knowledge):
-    save_json(path, knowledge)
-
-# ---------- IDENTITY ----------
-# Load global identity (same for all users)
-identity_path = "identity.json"
-if not os.path.exists(identity_path):
-    # create default identity if missing
-    save_json(identity_path, {"name": "Quinela"})
-identity = load_json(identity_path)
-
-# ---------- CONFIG ----------
 THRESHOLD = 0.6
 
 # ---------- RESPONSE FUNCTION ----------
-def get_response(user_input, knowledge, path=None):
+def get_response(user_input):
     normalized_input = normalize(user_input)
     best_match = None
     best_score = 0
@@ -58,23 +39,22 @@ def get_response(user_input, knowledge, path=None):
     for qa in knowledge.get("qa_pairs", []):
         stored = normalize(qa["question"])
         score = similarity(normalized_input, stored)
+
         if score > best_score:
             best_score = score
             best_match = qa
 
     if best_match and best_score >= THRESHOLD:
-        # update usage and confidence
         best_match["confidence"] = best_match.get("confidence", 1) + 1
         best_match["last_used"] = datetime.now().isoformat()
-        if path:
-            save_user_memory(path, knowledge)
-        return best_match["answer"], best_match, False
+        save_json("memory/knowledge.json", knowledge)
 
-    # not known
-    return "I don't know this yet. Can you teach me?", None, True
+        return best_match["answer"], False
+
+    return "I don't know this yet. Can you teach me?", True
 
 # ---------- LEARNING FUNCTION ----------
-def learn(question, answer, knowledge, path=None):
+def learn(question, answer):
     knowledge.setdefault("qa_pairs", []).append({
         "question": question,
         "answer": answer,
@@ -82,5 +62,5 @@ def learn(question, answer, knowledge, path=None):
         "learned_on": datetime.now().isoformat(),
         "last_used": datetime.now().isoformat()
     })
-    if path:
-        save_user_memory(path, knowledge)
+
+    save_json("memory/knowledge.json", knowledge)
