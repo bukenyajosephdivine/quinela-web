@@ -33,23 +33,23 @@ if st.button("Send") and user_input.strip():
 
     st.markdown(f"**Quinela:** {reply}")
 
+    # If Quinela does not know, enter teach mode
     if needs_teaching:
         st.session_state.teach_mode = True
         st.session_state.last_question = user_input
     else:
         st.session_state.teach_mode = False
 
-# ---------- SELF-CORRECTION ----------
-if st.session_state.qa_item:
-    correct_flag = st.radio("Is this answer correct?", ("Yes", "No"), key=str(user_input))
-    if correct_flag == "No":
-        new_answer = st.text_input("Please provide the correct answer:", key="correction_input")
-        if new_answer.strip():
-            st.session_state.qa_item["answer"] = new_answer
-            st.session_state.qa_item["last_used"] = new_answer
-            st.session_state.qa_item["confidence"] = max(1, st.session_state.qa_item.get("confidence", 1) - 1)
-            save_user_memory(path, knowledge)
-            st.success("✅ I have corrected myself!")
+# ---------- MANUAL CORRECTION ----------
+# If you know the answer was wrong, you can correct her here
+wrong_answer = st.text_input("If my answer was wrong, type the correct answer here:", key="correction_input")
+if wrong_answer.strip() and st.session_state.qa_item:
+    st.session_state.qa_item["answer"] = wrong_answer
+    st.session_state.qa_item["last_used"] = wrong_answer
+    st.session_state.qa_item["confidence"] = max(1, st.session_state.qa_item.get("confidence", 1) - 1)
+    save_user_memory(path, knowledge)
+    st.success("✅ I have corrected myself!")
+    st.session_state.qa_item = None  # Reset so you don't correct the same item again
 
 # ---------- TEACHING MODE ----------
 if st.session_state.teach_mode:
