@@ -1,5 +1,3 @@
-import asyncio
-from speaker import speak
 import streamlit as st
 from main import get_response, learn, identity, load_user_memory, save_user_memory
 from datetime import datetime
@@ -35,7 +33,6 @@ if st.button("Send") and user_input.strip():
     st.session_state.qa_item = qa_item
 
     st.markdown(f"**Quinela:** {reply}")
-    asyncio.run(speak(reply))
 
     # If Quinela does not know, enter teach mode
     if needs_teaching:
