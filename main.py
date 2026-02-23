@@ -3,6 +3,22 @@ import re
 import os
 import hashlib
 from datetime import datetime
+import asyncio
+import tempfile
+import edge_tts
+
+# ---------- VOICE CONFIG (FEMALE) ----------
+VOICE = "en-US-JennyNeural"
+
+async def speak(text):
+    """Speak text using female voice without media player popup"""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+        path = f.name
+
+    communicate = edge_tts.Communicate(text=text, voice=VOICE)
+    await communicate.save(path)
+
+    os.system(f'start /min "" "{path}"')
 
 # ---------- JSON UTILITIES ----------
 def load_json(path):
@@ -28,7 +44,6 @@ def similarity(q1, q2):
 
 # ---------- LEVEL 1: GMAIL → PRIVATE MEMORY ----------
 def _email_to_id(email):
-    """Convert gmail to safe private ID"""
     return hashlib.sha256(email.lower().encode()).hexdigest()
 
 def load_user_memory(email):
@@ -55,7 +70,7 @@ identity = load_json(identity_path)
 # ---------- CONFIG ----------
 THRESHOLD = 0.6
 
-# ---------- RESPONSE FUNCTION ----------
+# ---------- RESPONSE FUNCTION (SPEAKING ENABLED) ----------
 def get_response(user_input, knowledge, path=None):
     normalized_input = normalize(user_input)
     best_match = None
@@ -73,9 +88,14 @@ def get_response(user_input, knowledge, path=None):
         best_match["last_used"] = datetime.now().isoformat()
         if path:
             save_user_memory(path, knowledge)
-        return best_match["answer"], best_match, False
 
-    return "I don't know this yet. Can you teach me?", None, True
+        response = best_match["answer"]
+        asyncio.run(speak(response))
+        return response, best_match, False
+
+    response = "I don't know this yet. Can you teach me?"
+    asyncio.run(speak(response))
+    return response, None, True
 
 # ---------- LEARNING FUNCTION ----------
 def learn(question, answer, knowledge, path=None):

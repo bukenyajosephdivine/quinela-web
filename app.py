@@ -42,12 +42,12 @@ user_input = st.text_input("You:", placeholder="Type something...")
 # ---------- SEND BUTTON ----------
 if st.button("Send") and user_input.strip():
     reply, qa_item, needs_teaching = get_response(user_input, knowledge, path)
-
     st.session_state.last_reply = reply
     st.session_state.qa_item = qa_item
 
     st.markdown(f"**Quinela:** {reply}")
 
+    # If Quinela does not know, enter teach mode
     if needs_teaching:
         st.session_state.teach_mode = True
         st.session_state.last_question = user_input
