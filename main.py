@@ -5,21 +5,26 @@ import hashlib
 from datetime import datetime
 import asyncio
 import tempfile
-import edge_tts
-import requests
-from bs4 import BeautifulSoup
+import platform
 
-# ---------- VOICE CONFIG (FEMALE) ----------
-VOICE = "en-US-JennyNeural"
+# Optional: use edge_tts if on Windows, else speaking is skipped
+try:
+    import edge_tts
+    VOICE = "en-US-JennyNeural"
+    def is_windows():
+        return platform.system() == "Windows"
 
-async def speak(text):
-    """Speak text automatically using female voice without media player popup"""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
-        path = f.name
-    communicate = edge_tts.Communicate(text=text, voice=VOICE)
-    await communicate.save(path)
-    # Automatically play in background (works on Windows)
-    os.system(f'start /min "" "{path}"')
+    async def speak(text):
+        if not is_windows():
+            return
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+            path = f.name
+        communicate = edge_tts.Communicate(text=text, voice=VOICE)
+        await communicate.save(path)
+        os.system(f'start /min "" "{path}"')
+except ImportError:
+    async def speak(text):
+        return  # Speaking disabled if edge_tts is not installed
 
 # ---------- JSON UTILITIES ----------
 def load_json(path):
@@ -68,20 +73,6 @@ identity = load_json(identity_path)
 # ---------- CONFIG ----------
 THRESHOLD = 0.6
 
-# ---------- ONLINE SEARCH (DUCKDUCKGO) ----------
-def search_online(query):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        url = f"https://html.duckduckgo.com/html/?q={query}"
-        res = requests.get(url, headers=headers, timeout=5)
-        soup = BeautifulSoup(res.text, "html.parser")
-        result = soup.find("a", class_="result__a")
-        if result:
-            return result.get_text()
-        return "Sorry, I could not find an answer online."
-    except:
-        return "Sorry, I could not search online."
-
 # ---------- RESPONSE FUNCTION ----------
 def get_response(user_input, knowledge, path=None):
     normalized_input = normalize(user_input)
@@ -100,14 +91,20 @@ def get_response(user_input, knowledge, path=None):
         best_match["last_used"] = datetime.now().isoformat()
         if path:
             save_user_memory(path, knowledge)
+
         response = best_match["answer"]
-        asyncio.run(speak(response))
+        try:
+            asyncio.run(speak(response))
+        except:
+            pass  # Fail silently if speaking is not supported
         return response, best_match, False
 
-    # Quinela does not know → search online
-    online_answer = search_online(user_input)
-    asyncio.run(speak(online_answer))
-    return online_answer, None, True
+    response = "I don't know this yet. Can you teach me?"
+    try:
+        asyncio.run(speak(response))
+    except:
+        pass
+    return response, None, True
 
 # ---------- LEARNING FUNCTION ----------
 def learn(question, answer, knowledge, path=None):

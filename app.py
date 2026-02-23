@@ -4,8 +4,8 @@ from datetime import datetime
 import re
 
 # ---------- PAGE SETUP ----------
-st.set_page_config(page_title="Quinela", page_icon="🤖", layout="centered")
-st.markdown(f"<h1 style='color:black; font-size:60px'>{identity['name']}</h1>", unsafe_allow_html=True)
+st.set_page_config(page_title="Quinela", page_icon="🤖")
+st.markdown(f"<h1 style='color:black; font-size:48px'>{identity['name']} 🤖</h1>", unsafe_allow_html=True)
 st.write("Your private learning AI assistant")
 
 # ---------- SESSION STATE ----------
@@ -25,6 +25,7 @@ def is_valid_gmail(email):
 if not email:
     st.warning("Please enter your Gmail to continue")
     st.stop()
+
 if not is_valid_gmail(email):
     st.error("Please enter a valid Gmail address")
     st.stop()
@@ -42,6 +43,8 @@ if st.button("Send") and user_input.strip():
     reply, qa_item, needs_teaching = get_response(user_input, knowledge, path)
     st.session_state.last_reply = reply
     st.session_state.qa_item = qa_item
+
+    # Display her response
     st.markdown(f"**Quinela:** {reply}")
 
     if needs_teaching:
@@ -52,7 +55,10 @@ if st.button("Send") and user_input.strip():
 
 # ---------- MANUAL CORRECTION ----------
 st.markdown("### Correction (only if I was wrong)")
-wrong_answer = st.text_input("Type the correct answer here (optional):", key="correction_input")
+wrong_answer = st.text_input(
+    "Type the correct answer here (optional):",
+    key="correction_input"
+)
 
 if wrong_answer.strip() and st.session_state.qa_item:
     st.session_state.qa_item["answer"] = wrong_answer
