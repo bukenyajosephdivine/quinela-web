@@ -3,22 +3,6 @@ import re
 import os
 import hashlib
 from datetime import datetime
-import asyncio
-import tempfile
-import edge_tts
-
-# ---------- VOICE CONFIG (FEMALE) ----------
-VOICE = "en-US-JennyNeural"
-
-async def speak(text):
-    """Speak text using female voice without media player popup"""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
-        path = f.name
-
-    communicate = edge_tts.Communicate(text=text, voice=VOICE)
-    await communicate.save(path)
-
-    os.system(f'start /min "" "{path}"')
 
 # ---------- JSON UTILITIES ----------
 def load_json(path):
@@ -44,11 +28,11 @@ def similarity(q1, q2):
 
 # ---------- LEVEL 1: GMAIL → PRIVATE MEMORY ----------
 def _email_to_id(email):
+    """Convert Gmail to safe private ID"""
     return hashlib.sha256(email.lower().encode()).hexdigest()
 
 def load_user_memory(email):
     os.makedirs("memory/users", exist_ok=True)
-
     user_id = _email_to_id(email)
     path = f"memory/users/{user_id}.json"
 
@@ -70,8 +54,9 @@ identity = load_json(identity_path)
 # ---------- CONFIG ----------
 THRESHOLD = 0.6
 
-# ---------- RESPONSE FUNCTION (SPEAKING ENABLED) ----------
+# ---------- RESPONSE FUNCTION ----------
 def get_response(user_input, knowledge, path=None):
+    """Return (reply_text, qa_item, needs_teaching)"""
     normalized_input = normalize(user_input)
     best_match = None
     best_score = 0
@@ -84,18 +69,15 @@ def get_response(user_input, knowledge, path=None):
             best_match = qa
 
     if best_match and best_score >= THRESHOLD:
+        # update usage and confidence
         best_match["confidence"] = best_match.get("confidence", 1) + 1
         best_match["last_used"] = datetime.now().isoformat()
         if path:
             save_user_memory(path, knowledge)
+        return best_match["answer"], best_match, False
 
-        response = best_match["answer"]
-        asyncio.run(speak(response))
-        return response, best_match, False
-
-    response = "I don't know this yet. Can you teach me?"
-    asyncio.run(speak(response))
-    return response, None, True
+    # unknown
+    return "I don't know this yet. Can you teach me?", None, True
 
 # ---------- LEARNING FUNCTION ----------
 def learn(question, answer, knowledge, path=None):
