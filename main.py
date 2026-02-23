@@ -1,6 +1,7 @@
 import json
 import re
 import os
+import hashlib
 from datetime import datetime
 
 # ---------- JSON UTILITIES ----------
@@ -25,13 +26,20 @@ def similarity(q1, q2):
         return 0
     return len(s1 & s2) / len(s1 | s2)
 
-# ---------- PER-USER MEMORY ----------
-def load_user_memory(user_name):
-    os.makedirs("memory", exist_ok=True)
-    path = f"memory/{user_name}_knowledge.json"
+# ---------- LEVEL 1: GMAIL → PRIVATE MEMORY ----------
+def _email_to_id(email):
+    """Convert gmail to safe private ID"""
+    return hashlib.sha256(email.lower().encode()).hexdigest()
+
+def load_user_memory(email):
+    os.makedirs("memory/users", exist_ok=True)
+
+    user_id = _email_to_id(email)
+    path = f"memory/users/{user_id}.json"
+
     if not os.path.exists(path):
-        # create empty memory for new user
         save_json(path, {"qa_pairs": []})
+
     knowledge = load_json(path)
     return knowledge, path
 
@@ -41,7 +49,6 @@ def save_user_memory(path, knowledge):
 # ---------- IDENTITY ----------
 identity_path = "identity.json"
 if not os.path.exists(identity_path):
-    # create default identity if missing
     save_json(identity_path, {"name": "Quinela"})
 identity = load_json(identity_path)
 
@@ -62,14 +69,12 @@ def get_response(user_input, knowledge, path=None):
             best_match = qa
 
     if best_match and best_score >= THRESHOLD:
-        # update usage and confidence
         best_match["confidence"] = best_match.get("confidence", 1) + 1
         best_match["last_used"] = datetime.now().isoformat()
         if path:
             save_user_memory(path, knowledge)
         return best_match["answer"], best_match, False
 
-    # unknown
     return "I don't know this yet. Can you teach me?", None, True
 
 # ---------- LEARNING FUNCTION ----------
