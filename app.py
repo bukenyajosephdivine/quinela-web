@@ -5,16 +5,24 @@ import re
 import asyncio
 import tempfile
 import edge_tts
+import os
 
+# ---------- VOICE CONFIG (FEMALE) ----------
 VOICE = "en-US-JennyNeural"
 
 async def generate_speech(text):
-    """Generate TTS audio and return path to file"""
+    """Generate speech mp3 from text and return the file path"""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
         path = f.name
     communicate = edge_tts.Communicate(text=text, voice=VOICE)
     await communicate.save(path)
     return path
+
+def speak_st(text):
+    """Sync wrapper to play speech in Streamlit"""
+    path = asyncio.run(generate_speech(text))
+    # Use st.audio to play in the browser
+    st.audio(path, format="audio/mp3")
 
 # ---------- PAGE SETUP ----------
 st.set_page_config(page_title="Quinela", page_icon="🤖")
@@ -28,18 +36,20 @@ if "teach_mode" not in st.session_state:
     st.session_state.last_reply = ""
     st.session_state.qa_item = None
     st.session_state.user_email = None
-    st.session_state.audio_path = None
 
 # ---------- USER LOGIN (GMAIL) ----------
 email = st.text_input("Login with your Gmail:", placeholder="example@gmail.com")
 def is_valid_gmail(email):
     return re.match(r"^[a-zA-Z0-9._%+-]+@gmail\.com$", email)
+
 if not email:
     st.warning("Please enter your Gmail to continue")
     st.stop()
+
 if not is_valid_gmail(email):
     st.error("Please enter a valid Gmail address")
     st.stop()
+
 st.session_state.user_email = email
 
 # ---------- LOAD PRIVATE MEMORY ----------
@@ -55,10 +65,7 @@ if st.button("Send") and user_input.strip():
     st.session_state.qa_item = qa_item
 
     st.markdown(f"**Quinela:** {reply}")
-
-    # Generate audio and play
-    audio_path = asyncio.run(generate_speech(reply))
-    st.audio(audio_path, format="audio/mp3")
+    speak_st(reply)  # Play voice in browser
 
     if needs_teaching:
         st.session_state.teach_mode = True
@@ -68,7 +75,11 @@ if st.button("Send") and user_input.strip():
 
 # ---------- MANUAL CORRECTION ----------
 st.markdown("### Correction (only if I was wrong)")
-wrong_answer = st.text_input("Type the correct answer here (optional):", key="correction_input")
+wrong_answer = st.text_input(
+    "Type the correct answer here (optional):",
+    key="correction_input"
+)
+
 if wrong_answer.strip() and st.session_state.qa_item:
     st.session_state.qa_item["answer"] = wrong_answer
     st.session_state.qa_item["last_used"] = datetime.now().isoformat()
@@ -83,6 +94,7 @@ if wrong_answer.strip() and st.session_state.qa_item:
 if st.session_state.teach_mode:
     st.info("Teach Quinela the correct answer 👇")
     answer = st.text_input("Correct answer:", key="teach_input")
+
     if st.button("Teach"):
         if answer.strip():
             learn(st.session_state.last_question, answer, knowledge, path)
