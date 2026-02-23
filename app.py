@@ -6,12 +6,11 @@ import tempfile
 import asyncio
 import edge_tts
 
-# ---------- CONFIG ---------- #
 VOICE = "en-US-JennyNeural"
 
 # ---------- TTS FUNCTIONS ---------- #
 async def generate_audio(text):
-    """Generate TTS audio and return temporary file path"""
+    """Generate TTS audio file and return path"""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
         path = f.name
     communicate = edge_tts.Communicate(text=text, voice=VOICE)
@@ -19,17 +18,20 @@ async def generate_audio(text):
     return path
 
 def speak_streamlit(text):
-    """Speak text using Streamlit audio component"""
+    """Generate TTS and play automatically using st.audio"""
     path = asyncio.run(generate_audio(text))
-    st.audio(path, format="audio/mp3")
+    st.audio(path, format="audio/mp3", start_time=0)
 
 # ---------- PAGE SETUP ---------- #
 st.set_page_config(page_title="Quinela", page_icon="🤖")
 st.markdown(
-    f"<h1 style='text-align:center; font-size:70px; color:#4B0082'>{identity['name']} 🤖</h1>",
+    f"<h1 style='text-align:center; font-size:70px; color:black'>{identity['name']} 🤖</h1>",
     unsafe_allow_html=True
 )
-st.markdown("<h3 style='text-align:center; color:gray'>Your private learning AI assistant</h3>", unsafe_allow_html=True)
+st.markdown(
+    "<h3 style='text-align:center; color:gray'>Your private learning AI assistant</h3>", 
+    unsafe_allow_html=True
+)
 
 # ---------- SESSION STATE ---------- #
 if "teach_mode" not in st.session_state:
@@ -39,7 +41,7 @@ if "teach_mode" not in st.session_state:
     st.session_state.qa_item = None
     st.session_state.user_email = None
 
-# ---------- USER LOGIN (GMAIL) ---------- #
+# ---------- USER LOGIN ---------- #
 email = st.text_input("Login with your Gmail:", placeholder="example@gmail.com")
 
 def is_valid_gmail(email):
@@ -69,7 +71,7 @@ if st.button("Send") and user_input.strip():
 
     st.markdown(f"**Quinela:** {reply}")
 
-    # Speak automatically
+    # Automatic speech (works on web & mobile)
     speak_streamlit(reply)
 
     # Teach mode if unknown
