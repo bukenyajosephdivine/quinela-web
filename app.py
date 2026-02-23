@@ -1,33 +1,65 @@
 import streamlit as st
-from main import get_response, learn, identity, load_user_memory, save_user_memory
-from datetime import datetime
 import re
+from datetime import datetime
 import asyncio
 import tempfile
-import edge_tts
 import os
 
-# ---------- VOICE CONFIG (FEMALE) ----------
+from main import get_response, learn, identity, load_user_memory, save_user_memory
+import edge_tts
+
+# ---------- VOICE CONFIG ----------
 VOICE = "en-US-JennyNeural"
 
-async def generate_speech(text):
-    """Generate speech mp3 from text and return the file path"""
+async def generate_speech_bytes(text):
+    """Generate speech bytes from text using edge-tts"""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
         path = f.name
     communicate = edge_tts.Communicate(text=text, voice=VOICE)
     await communicate.save(path)
-    return path
+    with open(path, "rb") as f:
+        data = f.read()
+    os.remove(path)
+    return data
 
 def speak_st(text):
-    """Sync wrapper to play speech in Streamlit"""
-    path = asyncio.run(generate_speech(text))
-    # Use st.audio to play in the browser
-    st.audio(path, format="audio/mp3")
+    """Speak automatically in Streamlit"""
+    mp3_bytes = asyncio.run(generate_speech_bytes(text))
+    st.audio(mp3_bytes, format="audio/mp3", start_time=0)
 
 # ---------- PAGE SETUP ----------
-st.set_page_config(page_title="Quinela", page_icon="🤖")
-st.title(f"{identity['name']} 🤖")
-st.write("Your private learning AI assistant")
+st.set_page_config(page_title="Quinela", page_icon="🤖", layout="centered")
+
+# ---------- BACKGROUND & STYLING ----------
+background_url = "https://images.unsplash.com/photo-1607746882042-944635dfe10e?auto=format&fit=crop&w=1950&q=80"  # Example background
+st.markdown(
+    f"""
+    <style>
+    .stApp {{
+        background-image: url("{background_url}");
+        background-size: cover;
+        background-position: center;
+    }}
+    .chat-box {{
+        background-color: rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }}
+    .user-box {{
+        background-color: rgba(0, 0, 0, 0.3);
+        color: white;
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 10px;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.title(f"<span style='color:white'>{identity['name']} 🤖</span>", unsafe_allow_html=True)
+st.write("<span style='color:white'>Your private learning AI assistant</span>", unsafe_allow_html=True)
 
 # ---------- SESSION STATE ----------
 if "teach_mode" not in st.session_state:
@@ -36,9 +68,11 @@ if "teach_mode" not in st.session_state:
     st.session_state.last_reply = ""
     st.session_state.qa_item = None
     st.session_state.user_email = None
+    st.session_state.chat_history = []
 
 # ---------- USER LOGIN (GMAIL) ----------
 email = st.text_input("Login with your Gmail:", placeholder="example@gmail.com")
+
 def is_valid_gmail(email):
     return re.match(r"^[a-zA-Z0-9._%+-]+@gmail\.com$", email)
 
@@ -61,11 +95,18 @@ user_input = st.text_input("You:", placeholder="Type something...")
 # ---------- SEND BUTTON ----------
 if st.button("Send") and user_input.strip():
     reply, qa_item, needs_teaching = get_response(user_input, knowledge, path)
+
     st.session_state.last_reply = reply
     st.session_state.qa_item = qa_item
 
-    st.markdown(f"**Quinela:** {reply}")
-    speak_st(reply)  # Play voice in browser
+    st.session_state.chat_history.append({"user": user_input, "bot": reply})
+
+    # Display chat
+    for chat in st.session_state.chat_history[::-1]:
+        st.markdown(f"<div class='user-box'>{chat['user']}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-box'>{chat['bot']}</div>", unsafe_allow_html=True)
+
+    speak_st(reply)  # Auto-speaking
 
     if needs_teaching:
         st.session_state.teach_mode = True
@@ -74,7 +115,7 @@ if st.button("Send") and user_input.strip():
         st.session_state.teach_mode = False
 
 # ---------- MANUAL CORRECTION ----------
-st.markdown("### Correction (only if I was wrong)")
+st.markdown("<span style='color:white'>### Correction (only if I was wrong)</span>", unsafe_allow_html=True)
 wrong_answer = st.text_input(
     "Type the correct answer here (optional):",
     key="correction_input"
