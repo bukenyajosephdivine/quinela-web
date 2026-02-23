@@ -3,6 +3,23 @@ import re
 import os
 import hashlib
 from datetime import datetime
+import asyncio
+import tempfile
+import edge_tts
+import requests
+from bs4 import BeautifulSoup
+
+# ---------- VOICE CONFIG (FEMALE) ----------
+VOICE = "en-US-JennyNeural"
+
+async def speak(text):
+    """Speak text automatically using female voice without media player popup"""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+        path = f.name
+    communicate = edge_tts.Communicate(text=text, voice=VOICE)
+    await communicate.save(path)
+    # Automatically play in background (works on Windows)
+    os.system(f'start /min "" "{path}"')
 
 # ---------- JSON UTILITIES ----------
 def load_json(path):
@@ -28,17 +45,14 @@ def similarity(q1, q2):
 
 # ---------- LEVEL 1: GMAIL → PRIVATE MEMORY ----------
 def _email_to_id(email):
-    """Convert Gmail to safe private ID"""
     return hashlib.sha256(email.lower().encode()).hexdigest()
 
 def load_user_memory(email):
     os.makedirs("memory/users", exist_ok=True)
     user_id = _email_to_id(email)
     path = f"memory/users/{user_id}.json"
-
     if not os.path.exists(path):
         save_json(path, {"qa_pairs": []})
-
     knowledge = load_json(path)
     return knowledge, path
 
@@ -54,9 +68,22 @@ identity = load_json(identity_path)
 # ---------- CONFIG ----------
 THRESHOLD = 0.6
 
+# ---------- ONLINE SEARCH (DUCKDUCKGO) ----------
+def search_online(query):
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        url = f"https://html.duckduckgo.com/html/?q={query}"
+        res = requests.get(url, headers=headers, timeout=5)
+        soup = BeautifulSoup(res.text, "html.parser")
+        result = soup.find("a", class_="result__a")
+        if result:
+            return result.get_text()
+        return "Sorry, I could not find an answer online."
+    except:
+        return "Sorry, I could not search online."
+
 # ---------- RESPONSE FUNCTION ----------
 def get_response(user_input, knowledge, path=None):
-    """Return (reply_text, qa_item, needs_teaching)"""
     normalized_input = normalize(user_input)
     best_match = None
     best_score = 0
@@ -69,15 +96,18 @@ def get_response(user_input, knowledge, path=None):
             best_match = qa
 
     if best_match and best_score >= THRESHOLD:
-        # update usage and confidence
         best_match["confidence"] = best_match.get("confidence", 1) + 1
         best_match["last_used"] = datetime.now().isoformat()
         if path:
             save_user_memory(path, knowledge)
-        return best_match["answer"], best_match, False
+        response = best_match["answer"]
+        asyncio.run(speak(response))
+        return response, best_match, False
 
-    # unknown
-    return "I don't know this yet. Can you teach me?", None, True
+    # Quinela does not know → search online
+    online_answer = search_online(user_input)
+    asyncio.run(speak(online_answer))
+    return online_answer, None, True
 
 # ---------- LEARNING FUNCTION ----------
 def learn(question, answer, knowledge, path=None):
